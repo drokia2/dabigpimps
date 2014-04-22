@@ -43,7 +43,6 @@ public final class DeliberatePimp extends SampleGamer
 		 * Move to play is the goal of GGP.
 		 */
 		List<Move> moves = getStateMachine().getLegalMoves(getCurrentState(), getRole());
-		System.out.println("legal moves: "+ moves);
 
 		// SampleLegalGamer is very simple : it picks the last legal move
 		Move selection = bestMove(getRole(), getCurrentState());
@@ -59,21 +58,17 @@ public final class DeliberatePimp extends SampleGamer
 		 * this example, and copy-paste these two lines in your player
 		 */
 		notifyObservers(new GamerSelectedMoveEvent(moves, selection, stop - start));
-		System.out.println("selection: " + selection);
 		return selection;
 	}
 
 	private Move bestMove(Role role, MachineState state) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException{
-		//System.out.println("in best move");
 		List<Move> legalMoves = getStateMachine().getLegalMoves(state, role);
 		int score = 0;
 		Move bestAction = legalMoves.get(0);
 		for (int i = 0; i < legalMoves.size(); i++) {
 			Move move = legalMoves.get(i);
-			int result = maxScore(role, state);
-			//System.out.println("move " + move +"score " + result);
+			int result = maxScore(role, getStateMachine().getNextState(state, new ArrayList<Move>(Arrays.asList(move))));
 			if (result == 100)  {
-				System.out.println("!!!!!!!!!!!!!!!!\n\n\n\n\n\n\n\nn\n\n!!!!!!!!!!!!!!!!");
 				return move;
 			}
 			if (result > score) {
@@ -81,16 +76,11 @@ public final class DeliberatePimp extends SampleGamer
 				bestAction = move;
 			}
 		}
-		//System.out.println("best move " + bestAction + " score: " + score);
 		return bestAction;
 	}
 
 	private int  maxScore(Role role, MachineState state) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException{
-		///System.out.println("in maxScore");
 		if (getStateMachine().isTerminal(state))  {
-			//System.out.println("!!!!!!" + getStateMachine().getGoal(state, role));
-			////System.out.println("state " + state + " role " + role);
-
 			return getStateMachine().getGoal(state, role);
 		}
 		List<Move> legalMoves = getStateMachine().getLegalMoves(state, role);
@@ -103,7 +93,6 @@ public final class DeliberatePimp extends SampleGamer
 				score = result;
 			}
 		}
-		//System.out.println("yo is this zero? " + score);
 		return score;
 
 	}
