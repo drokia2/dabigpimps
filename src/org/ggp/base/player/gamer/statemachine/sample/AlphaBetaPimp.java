@@ -69,7 +69,7 @@ public final class AlphaBetaPimp extends SampleGamer
 			Move move = legalMoves.get(i);
 			int alpha = 0;
 		    int beta = 100;
-			int result = minScore(role, getStateMachine().getNextState(state, new ArrayList<Move>(Arrays.asList(move))), alpha, beta);
+			int result = minScore(role, getStateMachine().getNextState(state, new ArrayList<Move>(Arrays.asList(new Move[]{move}))), alpha, beta);
 			if (result==100) {
 				return move;
 			}
@@ -90,8 +90,9 @@ public final class AlphaBetaPimp extends SampleGamer
 		int score = 0;
 		for (int i = 0; i < legalMoves.size(); i++) {
 			Move move = legalMoves.get(i);
-
-			int result = maxScore(role, getStateMachine().getNextState(state, new ArrayList<Move>(Arrays.asList(move))), alpha, beta);
+			Move[] arr = new Move[]{move};
+			ArrayList<Move> moveList = new ArrayList<Move>(Arrays.asList(arr));
+			int result = maxScore(role, getStateMachine().getNextState(state, moveList), alpha, beta);
 			beta = Math.min(result, beta);
 			if (beta <= alpha) {
 				return alpha;
@@ -109,8 +110,9 @@ public final class AlphaBetaPimp extends SampleGamer
 		int score = 0;
 		for (int i = 0; i < legalMoves.size(); i++) {
 			Move move = legalMoves.get(i);
-
-			int result = minScore(role, getStateMachine().getNextState(state, new ArrayList<Move>(Arrays.asList(move))), alpha, beta);
+			Move[] arr = new Move[]{move};
+			ArrayList<Move> moveList = new ArrayList<Move>(Arrays.asList(arr));
+			int result = minScore(role, getStateMachine().getNextState(state, moveList), alpha, beta);
 			alpha = Math.max(result, alpha);
 			if (alpha >= beta) {
 				return beta;
