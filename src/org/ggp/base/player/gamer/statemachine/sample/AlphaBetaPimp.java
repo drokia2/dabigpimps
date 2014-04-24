@@ -69,7 +69,8 @@ public final class AlphaBetaPimp extends SampleGamer
 			Move move = legalMoves.get(i);
 			int alpha = 0;
 		    int beta = 100;
-			int result = minScore(role, getStateMachine().getNextState(state, new ArrayList<Move>(Arrays.asList(new Move[]{move}))), alpha, beta);
+		    ArrayList<Move> moveList = new ArrayList<Move>(Arrays.asList(new Move[]{move}));
+			int result = minScore(role, getStateMachine().getNextState(state, moveList), alpha, beta);
 			if (result==100) {
 				return move;
 			}
