@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.ggp.base.player.gamer.event.GamerSelectedMoveEvent;
+import org.ggp.base.util.gdl.grammar.GdlPool;
 import org.ggp.base.util.statemachine.MachineState;
 import org.ggp.base.util.statemachine.Move;
 import org.ggp.base.util.statemachine.Role;
@@ -67,7 +68,8 @@ public final class DeliberatePimp extends SampleGamer
 		Move bestAction = legalMoves.get(0);
 		for (int i = 0; i < legalMoves.size(); i++) {
 			Move move = legalMoves.get(i);
-			int result = maxScore(role, getStateMachine().getNextState(state, new ArrayList<Move>(Arrays.asList(move))));
+			Move noop = new Move(GdlPool.getConstant("noop"));
+			int result = maxScore(role, getStateMachine().getNextState(state, Arrays.asList(new Move[] {move, noop})));
 			if (result == 100)  {
 				return move;
 			}

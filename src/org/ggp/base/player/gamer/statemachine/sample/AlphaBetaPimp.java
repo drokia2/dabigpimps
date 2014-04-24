@@ -1,10 +1,10 @@
 package org.ggp.base.player.gamer.statemachine.sample;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import org.ggp.base.player.gamer.event.GamerSelectedMoveEvent;
+import org.ggp.base.util.gdl.grammar.GdlPool;
 import org.ggp.base.util.statemachine.MachineState;
 import org.ggp.base.util.statemachine.Move;
 import org.ggp.base.util.statemachine.Role;
@@ -69,8 +69,8 @@ public final class AlphaBetaPimp extends SampleGamer
 			Move move = legalMoves.get(i);
 			int alpha = 0;
 		    int beta = 100;
-		    ArrayList<Move> moveList = new ArrayList<Move>(Arrays.asList(new Move[]{move}));
-			int result = minScore(role, getStateMachine().getNextState(state, moveList), alpha, beta);
+		    //ArrayList<Move> moveList = Arrays.asList(new Move[]{move, GdlPool.getConstant("noop")});
+			int result = minScore(role, getStateMachine().getNextState(state, Arrays.asList(new Move[]{move, new Move(GdlPool.getConstant("noop"))})), alpha, beta);
 			if (result==100) {
 				return move;
 			}
@@ -92,8 +92,8 @@ public final class AlphaBetaPimp extends SampleGamer
 		for (int i = 0; i < legalMoves.size(); i++) {
 			Move move = legalMoves.get(i);
 			Move[] arr = new Move[]{move};
-			ArrayList<Move> moveList = new ArrayList<Move>(Arrays.asList(arr));
-			int result = maxScore(role, getStateMachine().getNextState(state, moveList), alpha, beta);
+			//ArrayList<Move> moveList = new ArrayList<Move>(Arrays.asList(arr));
+			int result = maxScore(role, getStateMachine().getNextState(state, Arrays.asList(new Move[]{move, new Move(GdlPool.getConstant("noop"))})), alpha, beta);
 			beta = Math.min(result, beta);
 			if (beta <= alpha) {
 				return alpha;
@@ -112,8 +112,8 @@ public final class AlphaBetaPimp extends SampleGamer
 		for (int i = 0; i < legalMoves.size(); i++) {
 			Move move = legalMoves.get(i);
 			Move[] arr = new Move[]{move};
-			ArrayList<Move> moveList = new ArrayList<Move>(Arrays.asList(arr));
-			int result = minScore(role, getStateMachine().getNextState(state, moveList), alpha, beta);
+			//ArrayList<Move> moveList = new ArrayList<Move>(Arrays.asList(arr));
+			int result = minScore(role, getStateMachine().getNextState(state, Arrays.asList(new Move[]{move, new Move(GdlPool.getConstant("noop"))})), alpha, beta);
 			alpha = Math.max(result, alpha);
 			if (alpha >= beta) {
 				return beta;
