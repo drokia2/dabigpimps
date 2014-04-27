@@ -54,7 +54,7 @@ public final class MinMaxPimp extends SampleGamer
 		/**
 		 * These are functions used by other parts of the GGP codebase
 		 * You shouldn't worry about them, just make sure that you have
-		 * moves, selection, stop and start defined in the same way as
+		 * moves, selection, stopzb  and start defined in the same way as
 		 * this example, and copy-paste these two lines in your player
 		 */
 		notifyObservers(new GamerSelectedMoveEvent(moves, selection, stop - start));
@@ -87,7 +87,6 @@ public final class MinMaxPimp extends SampleGamer
 	}
 
 	private int  minScore(Role role, MachineState state) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException{
-
 		Role opponent = getStateMachine().getRoles().get(0) == getRole() ? getStateMachine().getRoles().get(1) : getStateMachine().getRoles().get(0);
 		if (getStateMachine().isTerminal(state))  {
 			return getStateMachine().getGoal(state, role);
