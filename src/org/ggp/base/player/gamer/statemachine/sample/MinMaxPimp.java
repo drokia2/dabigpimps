@@ -1,10 +1,10 @@
 package org.ggp.base.player.gamer.statemachine.sample;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import org.ggp.base.player.gamer.event.GamerSelectedMoveEvent;
+import org.ggp.base.util.gdl.grammar.GdlPool;
 import org.ggp.base.util.statemachine.MachineState;
 import org.ggp.base.util.statemachine.Move;
 import org.ggp.base.util.statemachine.Role;
@@ -61,13 +61,23 @@ public final class MinMaxPimp extends SampleGamer
 		return selection;
 	}
 
+	private List<Move> makeMovesArray(Move move) {
+		Move[] moves = new Move[getStateMachine().getRoles().size()];
+		for (int j=0; j<moves.length; j++) {
+			moves[j] =  new Move(GdlPool.getConstant("noop"));
+		}
+		int index = getStateMachine().getRoleIndices().get(getRole());
+		moves[index] = move;
+		return Arrays.asList(moves);
+	}
+
 	private Move bestMove(Role role, MachineState state) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException{
 		List<Move> legalMoves = getStateMachine().getLegalMoves(state, role);
 		int score = 0;
 		Move bestAction = legalMoves.get(0);
 		for (int i = 0; i < legalMoves.size(); i++) {
 			Move move = legalMoves.get(i);
-			int result = minScore(role, getStateMachine().getNextState(state, new ArrayList<Move>(Arrays.asList(move))));
+			int result = minScore(role, getStateMachine().getNextState(state,makeMovesArray(move)));
 			if (result > score) {
 				score = result;
 				bestAction = move;
@@ -87,7 +97,7 @@ public final class MinMaxPimp extends SampleGamer
 		for (int i = 0; i < legalMoves.size(); i++) {
 			Move move = legalMoves.get(i);
 
-			int result = maxScore(role, getStateMachine().getNextState(state, new ArrayList<Move>(Arrays.asList(move))));
+			int result = maxScore(role, getStateMachine().getNextState(state, makeMovesArray(move)));
 			if (result < score) {
 				score = result;
 			}
@@ -105,7 +115,7 @@ public final class MinMaxPimp extends SampleGamer
 		for (int i = 0; i < legalMoves.size(); i++) {
 			Move move = legalMoves.get(i);
 
-			int result = minScore(role, getStateMachine().getNextState(state, new ArrayList<Move>(Arrays.asList(move))));
+			int result = minScore(role, getStateMachine().getNextState(state, makeMovesArray(move)));
 			if (result > score) {
 				score = result;
 			}
