@@ -23,6 +23,8 @@ import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
  */
 public final class DeliberatePimp extends SampleGamer
 {
+	//Milliseconds before timeout where we must bail
+	public final static int timeoutMargin = 50;
 	/**
 	 * This function is called at the start of each round
 	 * You are required to return the Move your player will play
@@ -36,7 +38,7 @@ public final class DeliberatePimp extends SampleGamer
 
 		List<Move> moves = getStateMachine().getLegalMoves(getCurrentState(), getRole());
 
-		Move selection = bestMove(getRole(), getCurrentState());
+		Move selection = bestMove(getRole(), getCurrentState(), timeout);
 
 		long stop = System.currentTimeMillis();
 
@@ -54,15 +56,16 @@ public final class DeliberatePimp extends SampleGamer
 		return Arrays.asList(moves);
 	}
 
-	private Move bestMove(Role role, MachineState state) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException{
+	private Move bestMove(Role role, MachineState state, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException{
 		List<Move> legalMoves = getStateMachine().getLegalMoves(state, role);
 		int score = 0;
 		Move bestAction = legalMoves.get(0);
+		if (legalMoves.size() == 1) return bestAction;
 		for (int i = 0; i < legalMoves.size(); i++) {
 			Move move = legalMoves.get(i);
 			//make moves array
 
-			int result = maxScore(role, getStateMachine().getNextState(state, makeMovesArray(move)));
+			int result = maxScore(role, getStateMachine().getNextState(state, makeMovesArray(move)), timeout);
 
 			if (result == 100)  {
 				return move;
@@ -71,11 +74,14 @@ public final class DeliberatePimp extends SampleGamer
 				score = result;
 				bestAction = move;
 			}
+			if (timeout - System.currentTimeMillis() <= timeoutMargin){
+				break;
+			}
 		}
 		return bestAction;
 	}
 
-	private int  maxScore(Role role, MachineState state) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException{
+	private int  maxScore(Role role, MachineState state, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException{
 		if (getStateMachine().isTerminal(state))  {
 			return getStateMachine().getGoal(state, role);
 		}
@@ -84,9 +90,12 @@ public final class DeliberatePimp extends SampleGamer
 		for (int i = 0; i < legalMoves.size(); i++) {
 			Move move = legalMoves.get(i);
 
-			int result = maxScore(role, getStateMachine().getNextState(state, makeMovesArray(move)));
+			int result = maxScore(role, getStateMachine().getNextState(state, makeMovesArray(move)), timeout);
 			if (result > score) {
 				score = result;
+			}
+			if (timeout - System.currentTimeMillis() <= timeoutMargin){
+				break;
 			}
 		}
 		return score;
