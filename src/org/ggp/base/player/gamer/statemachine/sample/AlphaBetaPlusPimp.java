@@ -19,7 +19,7 @@ import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
  * public Move stateMachineSelectMove(long timeout)
  *
  */
-public final class MinMaxPimp extends SampleGamer
+public final class AlphaBetaPlusPimp extends SampleGamer
 {
 	//Milliseconds before timeout where we must bail
 		public final static int timeoutMargin = 50;
@@ -80,7 +80,8 @@ public final class MinMaxPimp extends SampleGamer
 		for (int i = 0; i < legalMoves.size(); i++) {
 			Move move = legalMoves.get(i);
 			//System.out.println("ACTION:" + move.toString());
-			int result = minScore(role, move, state, timeout);
+			int result = minScore(role, move, state, 0, 100, timeout);
+			if (result == 100) return move;
 			if (result > score) {
 				score = result;
 				bestAction = move;
@@ -92,47 +93,51 @@ public final class MinMaxPimp extends SampleGamer
 		return bestAction;
 	}
 
-	private int  minScore(Role role, Move move, MachineState state, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException{
+	private int  minScore(Role role, Move move, MachineState state, int alpha, int beta, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException{
 		//Role opponent = getStateMachine().getRoles().get(0) == getRole() ? getStateMachine().getRoles().get(1) : getStateMachine().getRoles().get(0);
 		//if (getStateMachine().isTerminal(state))  {
 		//	return getStateMachine().getGoal(state, role);
 		//}
 		//List<Move> legalMoves = getStateMachine().getLegalMoves(state, opponent);
 		List<List<Move>> legalJointMoves = getStateMachine().getLegalJointMoves(state, role, move);
-		int score = 100;
+		//int score = 100;
 		for (int i = 0; i < legalJointMoves.size(); i++) {
 			List<Move> currMoves = legalJointMoves.get(i);
 			MachineState nextState = getStateMachine().getNextState(state, currMoves);
-			int result = maxScore(role, nextState, timeout);
-			if (result < score) {
-				score = result;
-			}
+			int result = maxScore(role, nextState, alpha, beta, timeout);
+			//if (result < score) {
+			//	score = result;
+			//}
+			beta = Math.min(beta,  result);
+			if (beta <= alpha) return alpha;
 			if (timeout - System.currentTimeMillis() <= timeoutMargin){
 				break;
 			}
 		}
-		return score;
+		return beta;
 
 	}
 
-	private int  maxScore(Role role, MachineState state, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException{
+	private int  maxScore(Role role, MachineState state, int alpha, int beta, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException{
 		if (getStateMachine().isTerminal(state))  {
 			return getStateMachine().getGoal(state, role);
 		}
 		List<Move> legalMoves = getStateMachine().getLegalMoves(state, role);
-		int score = 0;
+		//int score = 0;
 		for (int i = 0; i < legalMoves.size(); i++) {
 			Move currMove = legalMoves.get(i);
 
-			int result = minScore(role, currMove, state, timeout);
-			if (result > score) {
-				score = result;
-			}
+			int result = minScore(role, currMove, state, alpha, beta, timeout);
+			//if (result > score) {
+			//	score = result;
+			//}
+			alpha = Math.max(alpha,  result);
+			if (alpha >= beta) return beta;
 			if (timeout - System.currentTimeMillis() <= timeoutMargin){
 				break;
 			}
 		}
-		return score;
+		return alpha;
 
 	}
 }
