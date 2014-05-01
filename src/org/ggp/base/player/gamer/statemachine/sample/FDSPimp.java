@@ -19,11 +19,17 @@ import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
  * public Move stateMachineSelectMove(long timeout)
  *
  */
-public final class BDSPimp extends SampleGamer
+public final class FDSPimp extends SampleGamer
 {
 	//Milliseconds before timeout where we must bail
 	public final static int timeoutMargin = 50;
 	public final static int LEVEL_LIMIT = 3;
+
+	public enum Heuristic {
+		MOBILITY, FOCUS, GOAL_PROXIMITY;
+	}
+	public final static Heuristic HEURISTIC = Heuristic.MOBILITY;
+
 
 
 	/**
@@ -109,7 +115,7 @@ public final class BDSPimp extends SampleGamer
 			return getStateMachine().getGoal(state, role);
 		}
 		if (level >= LEVEL_LIMIT) {
-			return 0;
+			return evalfn(role, state);
 		}
 		List<Move> legalMoves = getStateMachine().getLegalMoves(state, role);
 		int score = 0;
@@ -130,4 +136,38 @@ public final class BDSPimp extends SampleGamer
 		return score;
 
 	}
+
+	private int evalfn(Role role, MachineState state) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+		switch(HEURISTIC) {
+		case MOBILITY:
+			return mobilityfn(role, state);
+		case FOCUS:
+			return focusfn(role, state);
+		case GOAL_PROXIMITY:
+			return goalProximity(role, state);
+		default:
+			System.out.println("SHIT IT SHOULDNT GET HERE");
+			throw new RuntimeException();
+		}
+	}
+
+	private int goalProximity(Role role, MachineState state) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException {
+		// TODO Auto-generated method stub
+		return 0;
+	}
+
+	private int focusfn(Role role, MachineState state) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException{
+		// TODO Auto-generated method stub
+		return 0;
+	}
+
+	private int mobilityfn(Role role, MachineState state) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException{
+		// TODO Auto-generated method stub
+		List<Move> legalMoves = getStateMachine().getLegalMoves(state, role);
+		getStateMachine().getM
+		return legalMoves.size();
+	}
+
+
+
 }
