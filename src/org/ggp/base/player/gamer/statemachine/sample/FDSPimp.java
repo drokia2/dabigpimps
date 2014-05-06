@@ -164,7 +164,7 @@ public final class FDSPimp extends SampleGamer
 	private int mobilityfn(Role role, MachineState state) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException{
 		// TODO Auto-generated method stub
 		List<Move> legalMoves = getStateMachine().getLegalMoves(state, role);
-		getStateMachine().getM
+		//getStateMachine().getM
 		return legalMoves.size();
 	}
 
