@@ -1,47 +1,49 @@
 package org.ggp.base.player.gamer.statemachine.sample;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.ggp.base.player.gamer.event.GamerSelectedMoveEvent;
 import org.ggp.base.util.statemachine.MachineState;
 import org.ggp.base.util.statemachine.Move;
 import org.ggp.base.util.statemachine.Role;
+import org.ggp.base.util.statemachine.StateMachine;
 import org.ggp.base.util.statemachine.exceptions.GoalDefinitionException;
 import org.ggp.base.util.statemachine.exceptions.MoveDefinitionException;
 import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
 
 /**
- * SampleLegalGamer is a minimal gamer which always plays the first
- * legal move it identifies, regardless of the state of the game.
+ * SampleMonteCarloGamer is a simple state-machine-based Gamer. It will use a
+ * pure Monte Carlo approach towards picking moves, doing simulations and then
+ * choosing the move that has the highest expected score. It should be slightly
+ * more challenging than the RandomGamer, while still playing reasonably fast.
  *
- * For your first players, you should extend the class SampleGamer
- * The only function that you are required to override is :
- * public Move stateMachineSelectMove(long timeout)
+ * However, right now it isn't challenging at all. It's extremely mediocre, and
+ * doesn't even block obvious one-move wins. This is partially due to the speed
+ * of the default state machine (which is slow) and mostly due to the algorithm
+ * assuming that the opponent plays completely randomly, which is inaccurate.
  *
+ * @author Adriana
  */
 public final class MCTSPimp extends SampleGamer
 {
-	//Milliseconds before timeout where we must bail
-		public final static int TIMEOUT_MARGIN = 50;
-		public final static int TIMEOUT_MARGIN2 = 100;
-		public final static int LEVEL_LIMIT = 3;
-		public final static int NUM_DEPTH_CHARGES = 1000;
 
-
+	private static final int SELECT_CONST = 1;
+	private static final int MC_TIMEOUT_MARGIN = 100;
 	/**
-	 * This function is called at the start of each round
-	 * You are required to return the Move your player will play
-	 * before the timeout.
-	 *
+	 * Employs a simple sample "Monte Carlo" algorithm.
 	 */
 	@Override
 	public Move stateMachineSelectMove(long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException
 	{
+	    StateMachine theMachine = getStateMachine();
 		long start = System.currentTimeMillis();
+		long finishBy = timeout - 1000;
 
-		List<Move> moves = getStateMachine().getLegalMoves(getCurrentState(), getRole());
-
-		Move selection = bestMove(getRole(), getCurrentState(), timeout);
+		List<Move> moves = theMachine.getLegalMoves(getCurrentState(), getRole());
+		Move selection = doTheMonteCarlo(getRole(), getCurrentState(), timeout);
 
 		long stop = System.currentTimeMillis();
 
@@ -49,84 +51,123 @@ public final class MCTSPimp extends SampleGamer
 		return selection;
 	}
 
-	private Move bestMove(Role role, MachineState state, long timeout) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException{
-		List<Move> legalMoves = getStateMachine().getLegalMoves(state, role);
-		int score = 0;
-		Move bestAction = legalMoves.get(0);
-		for (int i = 0; i < legalMoves.size(); i++) {
-			Move move = legalMoves.get(i);
-			int result = minScore(role, move, state, timeout, 0);
-			if (result > score) {
-				score = result;
-				bestAction = move;
-			}
-			if (timeout - System.currentTimeMillis() <= TIMEOUT_MARGIN){
-				break;
-			}
-		}
-		return bestAction;
-	}
 
-
-
-	private int  maxScore(Role role, MachineState state, long timeout, int level) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException{
-		if (getStateMachine().isTerminal(state))  {
-			return getStateMachine().getGoal(state, role);
-		}
-		if (level> LEVEL_LIMIT) {
-			return monteCarlo(role, state, NUM_DEPTH_CHARGES, timeout);
-		}
-
-		List<Move> legalMoves = getStateMachine().getLegalMoves(state, role);
-		int score = 0;
-		for (int i = 0; i < legalMoves.size(); i++) {
-			Move curMove = legalMoves.get(i);
-
-			int result = minScore(role, curMove, state, timeout, level);
-			if (result == 100) {
-				return 100;
-			}
-			if (result > score) {
-				score = result;
-			}
-			if (timeout - System.currentTimeMillis() <= TIMEOUT_MARGIN){
-				break;
-			}
-		}
-		return score;
-
-	}
-	private int  minScore(Role role, Move move, MachineState state, long timeout, int level) throws TransitionDefinitionException, MoveDefinitionException, GoalDefinitionException{
-
-		List<List<Move>> legalJointMoves = getStateMachine().getLegalJointMoves(state, role, move);
-		int score = 100;
-		for (int i = 0; i < legalJointMoves.size(); i++) {
-			List<Move> currMoves = legalJointMoves.get(i);
-			MachineState nextState = getStateMachine().getNextState(state, currMoves);
-			int result = maxScore(role, nextState, timeout, level + 1);
-			if (result < score) {
-				score = result;
-			}
-			if (timeout - System.currentTimeMillis() <= TIMEOUT_MARGIN){
-				break;
-			}
-		}
-		return score;
-
-	}
-
-	//might want it to return a double
 	private int[] depth = new int[1];
-	private int monteCarlo(Role role, MachineState state, int count, long timeout) throws GoalDefinitionException, MoveDefinitionException, TransitionDefinitionException {
-		int total = 0;
-		for (int i=0; i< count; i++) {
-			if (timeout - System.currentTimeMillis() <= TIMEOUT_MARGIN2)
-   		        break;
-			MachineState finalState = getStateMachine().performDepthCharge(state, depth);
-			total += getStateMachine().getGoal(finalState, role);
-		}
-		return total/count;
 
+	private Move doTheMonteCarlo(Role role, MachineState currentState,
+			long timeout) throws GoalDefinitionException, MoveDefinitionException, TransitionDefinitionException {
+
+		StateMachine SM = getStateMachine();
+		Map<MachineState, Integer> numVisits = new HashMap<MachineState, Integer>();
+		Map<MachineState, Integer> totals = new HashMap<MachineState, Integer>();
+		MachineState selectedState = currentState;
+		numVisits.put(selectedState, 0);
+		totals.put(selectedState, 0);
+		while(true) {
+			if (timeout - System.currentTimeMillis() <= MC_TIMEOUT_MARGIN){
+				break;
+			}
+			ArrayList<MachineState> path = new ArrayList<MachineState>();//for backprop
+			selectedState = select(numVisits, totals, selectedState, role, path);
+			if (SM.isTerminal(selectedState))  {
+				numVisits.put(selectedState, numVisits.get(selectedState) + 1);
+				totals.put(selectedState, totals.get(selectedState) +SM.getGoal(selectedState, role));
+				continue;
+			}
+			expand(selectedState, numVisits, totals, role);
+			//TODO: maybe do it more than once
+			int dcScore = SM.getGoal(SM.performDepthCharge(selectedState, depth), role);
+
+			backpropagate(selectedState, dcScore, path, numVisits, totals, role);
+
+
+
+		}
+
+
+		return null;
+	}
+
+
+
+	private void backpropagate(MachineState selectedState, int dcScore,
+			ArrayList<MachineState> path, Map<MachineState, Integer> numVisits,
+			Map<MachineState, Integer> totals, Role role) throws GoalDefinitionException {
+		StateMachine SM = getStateMachine();
+		for(int i=0; i< path.size(); i++) {
+			MachineState cur = path.get(i);
+			numVisits.put(cur, numVisits.get(cur) + 1);
+			totals.put(cur, totals.get(cur) +SM.getGoal(cur, role));
+
+		}
+
+	}
+
+
+
+	private void expand(MachineState state,
+			Map<MachineState, Integer> numVisits,
+			Map<MachineState, Integer> totals, Role role) throws MoveDefinitionException, TransitionDefinitionException {
+		StateMachine SM = getStateMachine();
+		List<Move> legalMoves = SM.getLegalMoves(state, role);
+		for (int i=0; i < legalMoves.size(); i++) {
+			List<List<Move>> legalJointMoves = SM.getLegalJointMoves(state, role, legalMoves.get(i));
+			for(int j=0; i< legalJointMoves.size(); i++) {
+				MachineState child = SM.getNextState(state, legalJointMoves.get(j));
+				if(numVisits.get(child) == null) {
+					numVisits.put(child, 0);
+					totals.put(child, 0);
+				}
+			}
+		}
+	}
+
+
+
+	private MachineState select(Map<MachineState, Integer> numVisits,
+			Map<MachineState, Integer> totals, MachineState state, Role role, ArrayList<MachineState> path) throws MoveDefinitionException, TransitionDefinitionException {
+		StateMachine SM = getStateMachine();
+		path.add(state);
+		if (SM.isTerminal(state))  {
+			return state;
+		}
+		List<Move> legalMoves = SM.getLegalMoves(state, role);
+		for (int i=0; i < legalMoves.size(); i++) {
+			List<List<Move>> legalJointMoves = SM.getLegalJointMoves(state, role, legalMoves.get(i));
+			for(int j=0; i< legalJointMoves.size(); i++) {
+				MachineState child = SM.getNextState(state, legalJointMoves.get(j));
+				if(numVisits.get(child) != null && numVisits.get(child)== 0) {
+					path.add(child);
+					return child;
+				}
+			}
+		}
+		int score = 0;
+		MachineState result = state;
+		for (int i=0; i < legalMoves.size(); i++) {
+			List<List<Move>> legalJointMoves = SM.getLegalJointMoves(state, role, legalMoves.get(i));
+			for(int j=0; i< legalJointMoves.size(); i++) {
+				MachineState child = getStateMachine().getNextState(state, legalJointMoves.get(j));
+				if(numVisits.get(child) == null) {
+					continue;
+				}
+				int curScore = selectFn(state, child, numVisits, totals);
+				if (curScore> score) {
+					score = curScore;
+					result = child;
+				}
+			}
+		}
+		return select(numVisits, totals, result, role, path);
+	}
+
+
+
+	private int selectFn(MachineState parent, MachineState child,
+			Map<MachineState, Integer> numVisits,
+			Map<MachineState, Integer> totals) {
+		double utility = totals.get(child)/ (double)numVisits.get(child);// avg reward
+		return (int) (utility + SELECT_CONST *Math.sqrt(2*Math.log(numVisits.get(parent))/numVisits.get(child)));
 	}
 
 }
