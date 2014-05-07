@@ -29,11 +29,12 @@ import org.ggp.base.util.statemachine.exceptions.TransitionDefinitionException;
  */
 public final class MCTSPimp extends SampleGamer
 {
-
-	private static final int SELECT_CONST = 10;
-	private static final int NUM_CHARGES = 1;
-	private static final int MC_TIMEOUT_MARGIN = 1000;
-	private static final int SHORT_TIMEOUT_MARGIN = 30;
+	private static final double ALQUERQUE_CONST = 4;
+	private static final double SELECT_CONST = ALQUERQUE_CONST;
+	private static final int ALQUERQUE_NUM_CHARGES = 10;
+	private static final int NUM_CHARGES =ALQUERQUE_NUM_CHARGES;
+	private static final int MC_TIMEOUT_MARGIN = 1500;
+	private static final int SHORT_TIMEOUT_MARGIN = 500;
 	private Map<MachineState, Integer> numVisits;
 	private Map<MachineState, Integer> totals;
 	/**
@@ -107,7 +108,7 @@ public final class MCTSPimp extends SampleGamer
 					bestUtility = childUtility;
 					bestMove = legalMoves.get(i);
 				}
-				if (timeout - System.currentTimeMillis() <= MC_TIMEOUT_MARGIN){
+				if (timeout - System.currentTimeMillis() <= SHORT_TIMEOUT_MARGIN){
 					return bestMove;
 				}
 			}
