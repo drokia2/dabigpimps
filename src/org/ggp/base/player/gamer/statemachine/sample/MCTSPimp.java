@@ -31,6 +31,7 @@ public final class MCTSPimp extends SampleGamer
 {
 
 	private static final int SELECT_CONST = 1;
+	private static final int NUM_CHARGES = 1;
 	private static final int MC_TIMEOUT_MARGIN = 100;
 	private static final int SHORT_TIMEOUT_MARGIN = 30;
 	/**
@@ -69,7 +70,6 @@ public final class MCTSPimp extends SampleGamer
 				break;
 			}
 			ArrayList<MachineState> path = new ArrayList<MachineState>();//for backprop
-			//System.out.println("about to call select");
 			selectedState = select(numVisits, totals, selectedState, role, path, timeout);
 
 			if (SM.isTerminal(selectedState))  {
@@ -79,7 +79,10 @@ public final class MCTSPimp extends SampleGamer
 			}
 			expand(selectedState, numVisits, totals, role);
 			//TODO: maybe do it more than once
-			int dcScore = SM.getGoal(SM.performDepthCharge(selectedState, depth), role);
+			int dcScore = 0;
+			for (int i=0; i< NUM_CHARGES; i++) {
+				dcScore += SM.getGoal(SM.performDepthCharge(selectedState, depth), role);
+			}
 
 			backpropagate(selectedState, dcScore, path, numVisits, totals, role);
 
@@ -118,8 +121,8 @@ public final class MCTSPimp extends SampleGamer
 		StateMachine SM = getStateMachine();
 		for(int i=0; i< path.size(); i++) {
 			MachineState cur = path.get(i);
-			numVisits.put(cur, numVisits.get(cur) + 1);
-			totals.put(cur, totals.get(cur) +SM.getGoal(cur, role));
+			numVisits.put(cur, numVisits.get(cur) + NUM_CHARGES);
+			totals.put(cur, totals.get(cur) +dcScore);
 
 		}
 
