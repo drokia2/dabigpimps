@@ -32,6 +32,7 @@ public final class MCTSPimp extends SampleGamer
 
 	private static final int SELECT_CONST = 1;
 	private static final int MC_TIMEOUT_MARGIN = 100;
+	private static final int SHORT_TIMEOUT_MARGIN = 30;
 	/**
 	 * Employs a simple sample "Monte Carlo" algorithm.
 	 */
@@ -68,7 +69,9 @@ public final class MCTSPimp extends SampleGamer
 				break;
 			}
 			ArrayList<MachineState> path = new ArrayList<MachineState>();//for backprop
-			selectedState = select(numVisits, totals, selectedState, role, path);
+			//System.out.println("about to call select");
+			selectedState = select(numVisits, totals, selectedState, role, path, timeout);
+
 			if (SM.isTerminal(selectedState))  {
 				numVisits.put(selectedState, numVisits.get(selectedState) + 1);
 				totals.put(selectedState, totals.get(selectedState) +SM.getGoal(selectedState, role));
@@ -83,9 +86,28 @@ public final class MCTSPimp extends SampleGamer
 
 
 		}
+		List<Move> legalMoves = SM.getLegalMoves(currentState, role);
+		double bestUtility = 0;
+		//TODO: check if nonempty
+		Move bestMove  = legalMoves.get(0);
+		for (int i=0; i < legalMoves.size(); i++) {
+			List<List<Move>> legalJointMoves = SM.getLegalJointMoves(currentState, role, legalMoves.get(i));
+			for(int j=0; j< legalJointMoves.size(); j++) {
+				MachineState child = SM.getNextState(currentState, legalJointMoves.get(j));
+				double childUtility = totals.get(child)/(double)numVisits.get(child);
+				if(childUtility > bestUtility) {
+					bestUtility = childUtility;
+					bestMove = legalMoves.get(i);
+				}
+				if (timeout - System.currentTimeMillis() <= SHORT_TIMEOUT_MARGIN){
+					return bestMove;
+				}
+			}
+		}
 
 
-		return null;
+
+		return bestMove;
 	}
 
 
@@ -104,7 +126,9 @@ public final class MCTSPimp extends SampleGamer
 	}
 
 
-
+    /*
+     * Expand simply adds the children of the selected node to numVisits and totals
+     */
 	private void expand(MachineState state,
 			Map<MachineState, Integer> numVisits,
 			Map<MachineState, Integer> totals, Role role) throws MoveDefinitionException, TransitionDefinitionException {
@@ -112,7 +136,7 @@ public final class MCTSPimp extends SampleGamer
 		List<Move> legalMoves = SM.getLegalMoves(state, role);
 		for (int i=0; i < legalMoves.size(); i++) {
 			List<List<Move>> legalJointMoves = SM.getLegalJointMoves(state, role, legalMoves.get(i));
-			for(int j=0; i< legalJointMoves.size(); i++) {
+			for(int j=0; j< legalJointMoves.size(); j++) {
 				MachineState child = SM.getNextState(state, legalJointMoves.get(j));
 				if(numVisits.get(child) == null) {
 					numVisits.put(child, 0);
@@ -125,40 +149,47 @@ public final class MCTSPimp extends SampleGamer
 
 
 	private MachineState select(Map<MachineState, Integer> numVisits,
-			Map<MachineState, Integer> totals, MachineState state, Role role, ArrayList<MachineState> path) throws MoveDefinitionException, TransitionDefinitionException {
+			Map<MachineState, Integer> totals, MachineState state, Role role, ArrayList<MachineState> path, long timeout) throws MoveDefinitionException, TransitionDefinitionException {
 		StateMachine SM = getStateMachine();
-		path.add(state);
-		if (SM.isTerminal(state))  {
-			return state;
-		}
-		List<Move> legalMoves = SM.getLegalMoves(state, role);
-		for (int i=0; i < legalMoves.size(); i++) {
-			List<List<Move>> legalJointMoves = SM.getLegalJointMoves(state, role, legalMoves.get(i));
-			for(int j=0; i< legalJointMoves.size(); i++) {
-				MachineState child = SM.getNextState(state, legalJointMoves.get(j));
-				if(numVisits.get(child) != null && numVisits.get(child)== 0) {
-					path.add(child);
-					return child;
+		while (true) {
+			path.add(state);
+			if (timeout - System.currentTimeMillis() <= MC_TIMEOUT_MARGIN){
+				return state;
+			}
+			if (numVisits.get(state) == 0)  {
+				return state;
+			}
+			//find unvisited child and return it
+			List<Move> legalMoves = SM.getLegalMoves(state, role);
+			for (int i=0; i < legalMoves.size(); i++) {
+				List<List<Move>> legalJointMoves = SM.getLegalJointMoves(state, role, legalMoves.get(i));
+				for(int j=0; j< legalJointMoves.size(); j++) {
+					MachineState child = SM.getNextState(state, legalJointMoves.get(j));
+					if(numVisits.get(child) != null && numVisits.get(child)== 0) {
+						path.add(child);
+						return child;
+					}
 				}
 			}
-		}
-		int score = 0;
-		MachineState result = state;
-		for (int i=0; i < legalMoves.size(); i++) {
-			List<List<Move>> legalJointMoves = SM.getLegalJointMoves(state, role, legalMoves.get(i));
-			for(int j=0; i< legalJointMoves.size(); i++) {
-				MachineState child = getStateMachine().getNextState(state, legalJointMoves.get(j));
-				if(numVisits.get(child) == null) {
-					continue;
-				}
-				int curScore = selectFn(state, child, numVisits, totals);
-				if (curScore> score) {
-					score = curScore;
-					result = child;
+			int score = 0;
+			MachineState result = state;
+			// check which visited child is worth exploring
+			for (int i=0; i < legalMoves.size(); i++) {
+				List<List<Move>> legalJointMoves = SM.getLegalJointMoves(state, role, legalMoves.get(i));
+				for(int j=0; j< legalJointMoves.size(); j++) {
+					MachineState child = getStateMachine().getNextState(state, legalJointMoves.get(j));
+					if(numVisits.get(child) == null) {
+						continue;
+					}
+					int curScore = selectFn(state, child, numVisits, totals);
+					if (curScore> score) {
+						score = curScore;
+						result = child;
+					}
 				}
 			}
+			state = result;
 		}
-		return select(numVisits, totals, result, role, path);
 	}
 
 
