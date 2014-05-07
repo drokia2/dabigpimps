@@ -32,7 +32,7 @@ public final class MCTSPimp extends SampleGamer
 
 	private static final int SELECT_CONST = 10;
 	private static final int NUM_CHARGES = 1;
-	private static final int MC_TIMEOUT_MARGIN = 100;
+	private static final int MC_TIMEOUT_MARGIN = 1000;
 	private static final int SHORT_TIMEOUT_MARGIN = 30;
 	private Map<MachineState, Integer> numVisits;
 	private Map<MachineState, Integer> totals;
@@ -77,14 +77,16 @@ public final class MCTSPimp extends SampleGamer
 				totals.put(selectedState, totals.get(selectedState) +SM.getGoal(selectedState, role));
 				continue;
 			}
-			expand(selectedState, role);
+			expand(selectedState, role, timeout);
 			//TODO: maybe do it more than once
 			int dcScore = 0;
 			for (int i=0; i< NUM_CHARGES; i++) {
 				dcScore += SM.getGoal(SM.performDepthCharge(selectedState, depth), role);
 			}
-
-			backpropagate(selectedState, dcScore, path, role);
+			if (timeout - System.currentTimeMillis() <= MC_TIMEOUT_MARGIN){
+				break;
+			}
+			backpropagate(selectedState, dcScore, path, role, timeout);
 
 
 
@@ -105,7 +107,7 @@ public final class MCTSPimp extends SampleGamer
 					bestUtility = childUtility;
 					bestMove = legalMoves.get(i);
 				}
-				if (timeout - System.currentTimeMillis() <= SHORT_TIMEOUT_MARGIN){
+				if (timeout - System.currentTimeMillis() <= MC_TIMEOUT_MARGIN){
 					return bestMove;
 				}
 			}
@@ -119,12 +121,15 @@ public final class MCTSPimp extends SampleGamer
 
 
 	private void backpropagate(MachineState selectedState, int dcScore,
-			ArrayList<MachineState> path, Role role) throws GoalDefinitionException {
+			ArrayList<MachineState> path, Role role, long timeout) throws GoalDefinitionException {
 		StateMachine SM = getStateMachine();
 		for(int i=0; i< path.size(); i++) {
 			MachineState cur = path.get(i);
 			numVisits.put(cur, numVisits.get(cur) + NUM_CHARGES);
 			totals.put(cur, totals.get(cur) +dcScore);
+			if (timeout - System.currentTimeMillis() <= MC_TIMEOUT_MARGIN){
+				return ;
+			}
 
 		}
 
@@ -134,7 +139,7 @@ public final class MCTSPimp extends SampleGamer
     /*
      * Expand simply adds the children of the selected node to numVisits and totals
      */
-	private void expand(MachineState state, Role role) throws MoveDefinitionException, TransitionDefinitionException {
+	private void expand(MachineState state, Role role, long timeout) throws MoveDefinitionException, TransitionDefinitionException {
 		StateMachine SM = getStateMachine();
 		List<Move> legalMoves = SM.getLegalMoves(state, role);
 		for (int i=0; i < legalMoves.size(); i++) {
@@ -144,6 +149,9 @@ public final class MCTSPimp extends SampleGamer
 				if(numVisits.get(child) == null) {
 					numVisits.put(child, 0);
 					totals.put(child, 0);
+				}
+				if (timeout - System.currentTimeMillis() <= MC_TIMEOUT_MARGIN){
+					return;
 				}
 			}
 		}
