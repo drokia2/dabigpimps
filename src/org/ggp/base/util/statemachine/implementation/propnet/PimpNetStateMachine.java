@@ -153,6 +153,7 @@ public class PimpNetStateMachine extends StateMachine {
 	{
 	    // List to contain the topological ordering.
 	    List<Proposition> order = new LinkedList<Proposition>();
+	    List<Component> compOrder = new LinkedList<Component>();
 
 		// All of the components in the PropNet
 		List<Component> components = new ArrayList<Component>(propNet.getComponents());
@@ -160,7 +161,37 @@ public class PimpNetStateMachine extends StateMachine {
 		// All of the propositions in the PropNet.
 		List<Proposition> propositions = new ArrayList<Proposition>(propNet.getPropositions());
 
-	    // TODO: Compute the topological ordering.
+		List<Proposition> basePropositions = new ArrayList<Proposition>(propNet.getBasePropositions().values());
+		List<Proposition> inputPropositions = new ArrayList<Proposition>(propNet.getInputPropositions().values());
+		List<Proposition> independentPropositions = new ArrayList<Proposition>();
+		independentPropositions.add(propNet.getInitProposition());
+		independentPropositions.addAll(inputPropositions);
+		independentPropositions.addAll(basePropositions);
+		int count = 0;
+		while(true) {
+			List<Component> toBeAdded = new ArrayList<Component>();
+			for(Component comp : components) {
+				Set<Component> inputs = comp.getInputs();
+				Set<Component> curOrder = new HashSet<Component>(compOrder);
+				curOrder.addAll(independentPropositions);
+				if (curOrder.containsAll(inputs)) {
+					count++;
+					compOrder.add(comp);
+				} else {
+					toBeAdded.add(comp);
+				}
+			}
+			if (toBeAdded.isEmpty()) break;
+			components = toBeAdded;
+
+		}
+
+
+		for (Component comp : compOrder) {
+			if (comp instanceof Proposition ) {
+				order.add((Proposition)comp);
+			}
+		}
 
 		return order;
 	}
