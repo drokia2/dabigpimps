@@ -49,12 +49,33 @@ public class PimpNetStateMachine extends StateMachine {
     private boolean markBases(MachineState state){
     	Map<GdlSentence, Proposition> baseProps = propNet.getBasePropositions();
     	Set<GdlSentence> currSentences = state.getContents();
+    	for (Proposition baseProp : baseProps.values()){
+    		baseProp.setValue(false);
+    	}
     	for (GdlSentence sentence: currSentences){
-    		if (baseProps.containsKey(sentence)){
-    			Proposition currProp = baseProps.get(sentence);
-    			//currProp.setValue(value);
-    		}
-    		//currProp =
+    		Proposition prop = baseProps.get(sentence.toTerm());
+    		if (prop != null) prop.setValue(true);
+    	}
+    	return true;
+    }
+
+    private boolean markActions(MachineState state){
+    	Map<GdlSentence, Proposition> inputProps = propNet.getInputPropositions();
+    	for (Proposition inputProp : inputProps.values()){
+    		inputProp.setValue(false);
+    	}
+    	Set<GdlSentence> currSentences = state.getContents();
+    	for (GdlSentence sentence : currSentences){
+    		Proposition prop = inputProps.get(sentence.toTerm());
+    		if (prop != null) prop.setValue(true);
+    	}
+    	return true;
+    }
+
+    private boolean clearPropNet(){
+    	Set<Proposition> props = propNet.getPropositions();
+    	for (Proposition prop : props){
+    		prop.setValue(false);
     	}
     	return true;
     }
@@ -79,6 +100,37 @@ public class PimpNetStateMachine extends StateMachine {
       	{props[i].mark = false};
   		return true}
      */
+
+    private boolean propMarkP(Component c){
+    	if (propNet.getBasePropositions().values().contains(c)) return c.getValue();
+    	else if (propNet.getInputPropositions().values().contains(c)) return c.getValue();
+    	else if (propNet.getInitProposition().equals(c)) return c.getValue();
+    	else if (propNet.getPropositions().contains(c)) return propMarkP(c.getSingleInput());
+    	else if (c instanceof org.ggp.base.util.propnet.architecture.components.Not) return propMarkNegation(c);
+    	else if (c instanceof org.ggp.base.util.propnet.architecture.components.And) return propMarkConjunction(c);
+    	else if (c instanceof org.ggp.base.util.propnet.architecture.components.Or) return propMarkDisjunction(c);
+    	return false;
+    }
+
+    private boolean propMarkNegation(Component c){
+    	return !propMarkP(c.getSingleInput());
+    }
+
+    private boolean propMarkConjunction(Component c){
+    	Set<Component> sources = c.getInputs();
+    	for (Component currComp : sources){
+    		if (!propMarkP(currComp)) return false;
+    	}
+    	return true;
+    }
+
+    private boolean propMarkDisjunction(Component c){
+    	Set<Component> sources = c.getInputs();
+    	for (Component currComp : sources){
+    		if (propMarkP(currComp)) return true;
+    	}
+    	return false;
+    }
 
 	/**
 	 * Computes if the state is terminal. Should return the value
