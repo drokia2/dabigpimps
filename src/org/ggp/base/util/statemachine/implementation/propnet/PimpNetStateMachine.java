@@ -46,6 +46,40 @@ public class PimpNetStateMachine extends StateMachine {
         ordering = getOrdering();
     }
 
+    private boolean markBases(MachineState state){
+    	Map<GdlSentence, Proposition> baseProps = propNet.getBasePropositions();
+    	Set<GdlSentence> currSentences = state.getContents();
+    	for (GdlSentence sentence: currSentences){
+    		if (baseProps.containsKey(sentence)){
+    			Proposition currProp = baseProps.get(sentence);
+    			//currProp.setValue(value);
+    		}
+    		//currProp =
+    	}
+    	return true;
+    }
+
+    /*
+     * function markbases (vector,propnet)
+ 		{var props = propnet.bases;
+  		for (var i=0; i<props.length; i++)
+      		{props[i].mark = vector[i]};
+  		return true
+  		}
+
+		function markactions (vector,propnet)
+ 		{var props = propnet.actions;
+  		for (var i=0; i<props.length; i++)
+      	{props[i].mark = vector[i]};
+  		return true}
+
+		function clearpropnet (propnet)
+ 		{var props = propnet.bases;
+  		for (var i=0; i<props.length; i++)
+      	{props[i].mark = false};
+  		return true}
+     */
+
 	/**
 	 * Computes if the state is terminal. Should return the value
 	 * of the terminal proposition for the state.
