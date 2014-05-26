@@ -59,77 +59,17 @@ public class PimpNetStateMachine extends StateMachine {
     	return true;
     }
 
-    private boolean markActions(MachineState state){
+    private boolean markActions(List<Move> moves){
     	Map<GdlSentence, Proposition> inputProps = propNet.getInputPropositions();
     	for (Proposition inputProp : inputProps.values()){
     		inputProp.setValue(false);
     	}
-    	Set<GdlSentence> currSentences = state.getContents();
-    	for (GdlSentence sentence : currSentences){
+    	List<GdlSentence> moveTerms = toDoes(moves);
+    	for (GdlSentence sentence: moveTerms){
     		Proposition prop = inputProps.get(sentence.toTerm());
-    		if (prop != null) prop.setValue(true);
+    		if (prop != null) prop.setValue(true);;
     	}
     	return true;
-    }
-
-    private boolean clearPropNet(){
-    	Set<Proposition> props = propNet.getPropositions();
-    	for (Proposition prop : props){
-    		prop.setValue(false);
-    	}
-    	return true;
-    }
-
-    /*
-     * function markbases (vector,propnet)
- 		{var props = propnet.bases;
-  		for (var i=0; i<props.length; i++)
-      		{props[i].mark = vector[i]};
-  		return true
-  		}
-
-		function markactions (vector,propnet)
- 		{var props = propnet.actions;
-  		for (var i=0; i<props.length; i++)
-      	{props[i].mark = vector[i]};
-  		return true}
-
-		function clearpropnet (propnet)
- 		{var props = propnet.bases;
-  		for (var i=0; i<props.length; i++)
-      	{props[i].mark = false};
-  		return true}
-     */
-
-    private boolean propMarkP(Component c){
-    	if (propNet.getBasePropositions().values().contains(c)) return c.getValue();
-    	else if (propNet.getInputPropositions().values().contains(c)) return c.getValue();
-    	else if (propNet.getInitProposition().equals(c)) return c.getValue();
-    	else if (propNet.getPropositions().contains(c)) return propMarkP(c.getSingleInput());
-    	else if (c instanceof org.ggp.base.util.propnet.architecture.components.Not) return propMarkNegation(c);
-    	else if (c instanceof org.ggp.base.util.propnet.architecture.components.And) return propMarkConjunction(c);
-    	else if (c instanceof org.ggp.base.util.propnet.architecture.components.Or) return propMarkDisjunction(c);
-    	return false;
-    }
-
-    private boolean propMarkNegation(Component c){
-    	return !propMarkP(c.getSingleInput());
-    }
-
-    private boolean propMarkConjunction(Component c){
-    	Set<Component> sources = c.getInputs();
-    	for (Component currComp : sources){
-    		if (!propMarkP(currComp)) return false;
-    	}
-    	return true;
-    }
-
-    private boolean propMarkDisjunction(Component c){
-    	Set<Component> sources = c.getInputs();
-    	for (Component currComp : sources){
-    		if (propMarkP(currComp)) return true;
-    	}
-    	return false;
     }
 
 	/**
@@ -139,7 +79,9 @@ public class PimpNetStateMachine extends StateMachine {
 	@Override
 	public boolean isTerminal(MachineState state) {
 		// TODO: Compute whether the MachineState is terminal.
-		return false;
+		markBases(state);
+		for (Proposition prop : ordering) prop.setValue(prop.getSingleInput().getValue());
+		return propNet.getTerminalProposition().getValue();
 	}
 
 	/**
@@ -153,7 +95,22 @@ public class PimpNetStateMachine extends StateMachine {
 	public int getGoal(MachineState state, Role role)
 	throws GoalDefinitionException {
 		// TODO: Compute the goal for role in state.
-		return -1;
+		markBases(state);
+		for (Proposition prop : ordering) prop.setValue(prop.getSingleInput().getValue());
+		Set<Proposition> props = propNet.getGoalPropositions().get(role);
+		Proposition goalProp = null;
+		int numTrueProps = 0;
+		for (Proposition prop : props){
+			if(prop.getValue()){
+				if (numTrueProps == 0){
+					numTrueProps++;
+					goalProp = prop;
+				} else {
+					throw new GoalDefinitionException(state, role);
+				}
+			}
+		}
+		return getGoalValue(goalProp);
 	}
 
 	/**
@@ -164,7 +121,15 @@ public class PimpNetStateMachine extends StateMachine {
 	@Override
 	public MachineState getInitialState() {
 		// TODO: Compute the initial state.
-		return null;
+		Map<GdlSentence, Proposition> baseProps = propNet.getBasePropositions();
+    	for (Proposition baseProp : baseProps.values()){
+    		baseProp.setValue(false);
+    	}
+    	propNet.getInitProposition().setValue(true);
+    	for (Proposition prop : ordering) prop.setValue(prop.getSingleInput().getValue());
+    	MachineState initialState = getStateFromBase();
+    	propNet.getInitProposition().setValue(false);
+		return initialState;
 	}
 
 	/**
@@ -174,7 +139,17 @@ public class PimpNetStateMachine extends StateMachine {
 	public List<Move> getLegalMoves(MachineState state, Role role)
 	throws MoveDefinitionException {
 		// TODO: Compute legal moves.
-		return null;
+		markBases(state);
+		for (Proposition prop : ordering) prop.setValue(prop.getSingleInput().getValue());
+		Set<Proposition> legalProps = propNet.getLegalPropositions().get(role);
+		List<Move> legalMoveList = new ArrayList<Move>();
+		for (Proposition legalProp : legalProps){
+			if (legalProp.getValue()){
+				Move legalMove = getMoveFromProposition(legalProp);
+				legalMoveList.add(legalMove);
+			}
+		}
+		return legalMoveList;
 	}
 
 	/**
@@ -184,7 +159,17 @@ public class PimpNetStateMachine extends StateMachine {
 	public MachineState getNextState(MachineState state, List<Move> moves)
 	throws TransitionDefinitionException {
 		// TODO: Compute the next state.
-		return null;
+		markBases(state);
+		markActions(moves);
+		for (Proposition prop : ordering) prop.setValue(prop.getSingleInput().getValue());
+		Set<GdlSentence> nextStateSentences = new HashSet<GdlSentence>();
+		for (GdlSentence sentence : propNet.getBasePropositions().keySet()){
+			Proposition prop = propNet.getBasePropositions().get(sentence);
+			if (prop.getSingleInput().getValue()){
+				nextStateSentences.add(prop.getName());
+			}
+		}
+		return new MachineState(nextStateSentences);
 	}
 
 	/**
