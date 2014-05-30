@@ -34,6 +34,8 @@ public class PimpNetStateMachine extends StateMachine {
     /** The player roles */
     private List<Role> roles;
 
+    private MachineState initial;
+
     /**
      * Initializes the PropNetStateMachine. You should compute the topological
      * ordering here. Additionally you may compute the initial state here, at
@@ -43,10 +45,25 @@ public class PimpNetStateMachine extends StateMachine {
     public void initialize(List<Gdl> description) {
         propNet = PropNetFactory.create(description);
         roles = propNet.getRoles();
+        System.out.println("Getting ordering!");
         ordering = getOrdering();
+        System.out.println("Got ordered!");
+        initial = computeInitialState();
     }
 
-    private boolean markBases(MachineState state){
+    private MachineState computeInitialState() {
+		// TODO Auto-generated method stub
+    	for (Proposition baseProp : propNet.getBasePropositions().values()){
+    		baseProp.setValue(false);
+    	}
+    	propNet.getInitProposition().setValue(true);
+    	propagate();
+    	MachineState initialState = getStateFromBase();
+    	propNet.getInitProposition().setValue(false);
+		return initialState;
+	}
+
+	private boolean markBases(MachineState state){
     	Map<GdlSentence, Proposition> baseProps = propNet.getBasePropositions();
     	Set<GdlSentence> currSentences = state.getContents();
     	for (Proposition baseProp : baseProps.values()){
@@ -72,6 +89,10 @@ public class PimpNetStateMachine extends StateMachine {
     	return true;
     }
 
+    private void propagate(){
+    	for (Proposition prop : ordering) prop.setValue(prop.getSingleInput().getValue());
+    }
+
 	/**
 	 * Computes if the state is terminal. Should return the value
 	 * of the terminal proposition for the state.
@@ -80,7 +101,7 @@ public class PimpNetStateMachine extends StateMachine {
 	public boolean isTerminal(MachineState state) {
 		// TODO: Compute whether the MachineState is terminal.
 		markBases(state);
-		for (Proposition prop : ordering) prop.setValue(prop.getSingleInput().getValue());
+		propagate();
 		return propNet.getTerminalProposition().getValue();
 	}
 
@@ -96,7 +117,7 @@ public class PimpNetStateMachine extends StateMachine {
 	throws GoalDefinitionException {
 		// TODO: Compute the goal for role in state.
 		markBases(state);
-		for (Proposition prop : ordering) prop.setValue(prop.getSingleInput().getValue());
+		propagate();
 		Set<Proposition> props = propNet.getGoalPropositions().get(role);
 		Proposition goalProp = null;
 		int numTrueProps = 0;
@@ -121,15 +142,7 @@ public class PimpNetStateMachine extends StateMachine {
 	@Override
 	public MachineState getInitialState() {
 		// TODO: Compute the initial state.
-		Map<GdlSentence, Proposition> baseProps = propNet.getBasePropositions();
-    	for (Proposition baseProp : baseProps.values()){
-    		baseProp.setValue(false);
-    	}
-    	propNet.getInitProposition().setValue(true);
-    	for (Proposition prop : ordering) prop.setValue(prop.getSingleInput().getValue());
-    	MachineState initialState = getStateFromBase();
-    	propNet.getInitProposition().setValue(false);
-		return initialState;
+		return initial;
 	}
 
 	/**
@@ -140,7 +153,7 @@ public class PimpNetStateMachine extends StateMachine {
 	throws MoveDefinitionException {
 		// TODO: Compute legal moves.
 		markBases(state);
-		for (Proposition prop : ordering) prop.setValue(prop.getSingleInput().getValue());
+		propagate();
 		Set<Proposition> legalProps = propNet.getLegalPropositions().get(role);
 		List<Move> legalMoveList = new ArrayList<Move>();
 		for (Proposition legalProp : legalProps){
@@ -161,7 +174,7 @@ public class PimpNetStateMachine extends StateMachine {
 		// TODO: Compute the next state.
 		markBases(state);
 		markActions(moves);
-		for (Proposition prop : ordering) prop.setValue(prop.getSingleInput().getValue());
+		propagate();
 		Set<GdlSentence> nextStateSentences = new HashSet<GdlSentence>();
 		for (GdlSentence sentence : propNet.getBasePropositions().keySet()){
 			Proposition prop = propNet.getBasePropositions().get(sentence);
@@ -204,24 +217,31 @@ public class PimpNetStateMachine extends StateMachine {
 		independentPropositions.add(propNet.getInitProposition());
 		independentPropositions.addAll(inputPropositions);
 		independentPropositions.addAll(basePropositions);
-		int count = 0;
+		//int count = 0;
+		System.out.println("Propositions' Size: " + (propositions.size() - independentPropositions.size()));
+		List<Proposition> depPropositions = new ArrayList<Proposition>(propositions);
+		depPropositions.removeAll(independentPropositions);
 		while(true) {
+			System.out.println("Ordering size: " + compOrder.size());
 			List<Component> toBeAdded = new ArrayList<Component>();
-			for(Component comp : components) {
-				Set<Component> inputs = comp.getInputs();
+			for(Proposition prop : depPropositions) {
+				Set<Component> inputs = prop.getSingleInput().getInputs();
 				Set<Component> curOrder = new HashSet<Component>(compOrder);
 				curOrder.addAll(independentPropositions);
-				if (curOrder.containsAll(inputs)) {
-					count++;
-					compOrder.add(comp);
+				if (compOrder.contains(prop)) {
+					continue;
+				} else if (curOrder.containsAll(inputs)) {
+					//count++;
+					compOrder.add(prop);
 				} else {
-					toBeAdded.add(comp);
+					toBeAdded.add(prop);
 				}
 			}
 			if (toBeAdded.isEmpty()) break;
 			components = toBeAdded;
 
 		}
+		System.out.println("Ordering size: " + compOrder.size());
 
 
 		for (Component comp : compOrder) {
@@ -229,6 +249,34 @@ public class PimpNetStateMachine extends StateMachine {
 				order.add((Proposition)comp);
 			}
 		}
+		//System.out.println()
+//		while (!propositions.isEmpty()){
+//			Proposition curr = propositions.remove(0);
+//			if(curr.getInputs().size()==0) continue;
+//			if(basePropositions.contains(curr)) continue;
+//			if(inputPropositions.contains(curr)) continue;
+//			if(propNet.getInitProposition().equals(curr)) continue;
+//
+//			Set<Component> inputs = curr.getSingleInput().getInputs();
+//			boolean allInputsAdded = true;
+//
+//			for (Component currComp : inputs){
+//				if (!order.contains(currComp)){
+//					allInputsAdded = false;
+//					break;
+//				}
+//				if(((Proposition)currComp).getInputs().size()==0 ||
+//						basePropositions.contains((Proposition)currComp) ||
+//						inputPropositions.contains((Proposition)currComp) ||
+//						propNet.getInitProposition().equals(currComp)){
+//					allInputsAdded = false;
+//					break;
+//				}
+//			}
+//
+//			if (allInputsAdded) order.add(curr);
+//			else propositions.add(curr);
+//		}
 
 		return order;
 	}
